@@ -1,0 +1,53 @@
+---
+- hosts: webservers
+  connection: docker
+  vars: 
+    db_host: wordpress_mysql
+  tasks:
+    # - name: ping al contenedor de apache
+    #   ping:
+    - name: incluir variables
+      include_vars: 
+        file: vars.yml
+    - name: asegurar que php esté instalado
+      package:
+        name:
+          - php7.3
+          - php7.3-mysql
+          - php7.3-json
+          - php7.3-pdo
+          - php7.3-zip
+          - php7.3-gd
+          - php7.3-xml
+        state: present
+        update_cache: true
+        force_apt_get: true
+    - name: descargar wordpress
+      unarchive:
+        src: https://wordpress.org/latest.tar.gz
+        remote_src: true
+        dest: /var/www/html
+        owner: www-data
+        group: www-data
+    - name: asegurar que apache esté corriendo
+      service:
+        name: apache2
+        state: started
+    - name: desactivar el sitio default
+      shell: a2dissite  000-default.conf
+    - name: subir configuracion de wordpress para apache
+      copy:
+        src: templates/apache2/wordpress.conf
+        dest: /etc/apache2/sites-available/wordpress.conf
+    - name: activar sitio de wordpress en apache
+      shell: a2ensite wordpress.conf
+    - name: reiniciar apache para que tome la config
+      service:
+        name: apache2
+        state: restarted
+    - name: generar wp-config.php
+      template:
+        src: templates/wordpress/wp-config.php.j2
+        dest: /var/www/html/wordpress/wp-config.php
+        owner: www-data
+        group: www-data
